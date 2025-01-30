@@ -10,7 +10,6 @@ use App\Filament\Widgets\TopSalesPerson;
 use Awcodes\Recently\RecentlyPlugin;
 use Awcodes\Recently\Resources\RecentEntryResource;
 use BezhanSalleh\FilamentShield\FilamentShieldPlugin;
-use EightyNine\Reports\ReportsPlugin;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;

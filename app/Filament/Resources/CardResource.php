@@ -392,9 +392,7 @@ class CardResource extends Resource
                                                             ->warning()
                                                             ->send();
                                                     }
-
                                                 })
-
                                                 ->iconButton()
                                         ])
                                         ->columnSpanFull(),
