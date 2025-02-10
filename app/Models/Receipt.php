@@ -23,6 +23,7 @@ class Receipt extends Model
         'bank_no',
         'dc_cc',
         'total',
+        'type',
         'changes',
         'recon_acc',
         'bank_date',
@@ -40,6 +41,11 @@ class Receipt extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function issuer()
+    {
+        return $this->belongsTo(User::class, 'issued_by');
     }
 
     /**

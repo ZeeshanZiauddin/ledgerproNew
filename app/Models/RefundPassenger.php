@@ -38,4 +38,9 @@ class RefundPassenger extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    public function payRefunds()
+    {
+        return $this->belongsToMany(PayRefund::class, 'pay_refund_refund_passenger');
+    }
 }

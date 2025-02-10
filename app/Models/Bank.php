@@ -26,4 +26,9 @@ class Bank extends Model
         return $this->hasMany(Receipt::class);
     }
 
+    public function payRefunds()
+    {
+        return $this->hasMany(PayRefund::class);
+    }
+
 }

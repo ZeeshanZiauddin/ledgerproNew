@@ -11,7 +11,7 @@ use Illuminate\Notifications\Notifiable;
 use Rappasoft\LaravelAuthenticationLog\Traits\AuthenticationLoggable;
 use Spatie\Permission\Traits\HasRoles;
 use Filament\Models\Contracts\HasAvatar;
-use Storage;
+use Illuminate\Support\Facades\Storage;
 
 class User extends Authenticatable implements FilamentUser, HasAvatar
 {
@@ -25,6 +25,7 @@ class User extends Authenticatable implements FilamentUser, HasAvatar
      */
     protected $fillable = [
         'name',
+        'username',
         'email',
         'password',
         'avatar_url',
@@ -55,17 +56,18 @@ class User extends Authenticatable implements FilamentUser, HasAvatar
     public function inquires()
     {
         return $this->hasMany(Inquiry::class);
-
     }
     public function cards()
     {
         return $this->hasMany(Card::class);
-
     }
     public function receipts()
     {
         return $this->hasMany(Receipt::class);
-
+    }
+    public function payRefunds()
+    {
+        return $this->hasMany(PayRefund::class);
     }
 
     public function createdReminders()

@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\ReceiptResource\Pages;
 use App\Models\Card;
 use App\Models\Receipt;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -16,6 +17,7 @@ use Filament\Tables;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use NumberFormatter;
 
 class ReceiptResource extends Resource
 {
@@ -167,9 +169,21 @@ class ReceiptResource extends Resource
                     })
             ])
             ->actions([
+                Tables\Actions\EditAction::make(),
+                Tables\Actions\Action::make('viewInvoice')
+                    ->label('Invoice')
+                    ->icon('heroicon-o-document-text')
+                    ->slideOver()
+                    ->modalHeading(fn($record) => 'Invoice for Receipt : ' . $record->name)
+                    ->modalWidth('3xl')
+                    ->modalContent(function ($record) {
+                        $data = static::getReceiptDataForPdf($record);
+                        return static::loadPdf($data);
+                    })
+                    ->modalSubmitActionLabel('Email')
+                    ->modalSubmitAction(),
                 Tables\Actions\ActionGroup::make([
-                    Tables\Actions\EditAction::make(),
-                    Tables\Actions\ViewAction::make(),
+
                     Tables\Actions\DeleteAction::make()
                         ->requiresConfirmation()
                 ])
@@ -230,8 +244,8 @@ class ReceiptResource extends Resource
     {
         return [
             'index' => Pages\ListReceipts::route('/'),
-            // 'create' => Pages\CreateReceipt::route('/create'),
-            // 'edit' => Pages\EditReceipt::route('/{record}/edit'),
+            'create' => Pages\CreateReceipt::route('/create'),
+            'edit' => Pages\EditReceipt::route('/{record}/edit'),
 
         ];
     }
@@ -242,5 +256,50 @@ class ReceiptResource extends Resource
         $newNumber = str_pad($latestNumber + 1, 7, '0', STR_PAD_LEFT); // Increment and pad the number with leading zeros
 
         return 'RS' . $newNumber; // Prefix with "QR"
+    }
+
+    public static function convertNumberToWords($number)
+    {
+        $formatter = new NumberFormatter('en', NumberFormatter::SPELLOUT);
+        return ucfirst($formatter->format($number)) . ' only';
+    }
+
+    public static function getReceiptDataForPdf($record): array
+    {
+
+        $total_words = self::convertNumberToWords($record->total);
+        return [
+            'company' => [
+                'name' => setting('site_name'),
+                'email' => setting('site_email'),
+                'phone' => setting('site_phone'),
+                'address' => setting('site_address'),
+            ],
+            'receipt' => [
+                'name' => $record->name,
+                'card_name' => optional($record->card)->card_name,
+                'date' => Carbon::parse($record->bank_date)->format('d-M-Y'),
+                'mode' => $record->type,
+                'cheque' => $record->dc_cc,
+                'total' => $record->total,
+                'totalInWords' => $total_words,
+                'charges' => $record->charges,
+            ],
+            'customer' => $record->customer->name,
+            'bank' => $record->bank->name,
+            'issued_by' => optional($record->user)->name,
+            'currency' => setting('site_currency'),
+        ];
+
+    }
+
+    public static function loadPdf(array $data)
+    {
+
+        $pdf = Pdf::loadView('pdf.receipt', $data);
+
+        $pdfData = base64_encode($pdf->output());
+        $pdfSrc = 'data:application/pdf;base64,' . $pdfData;
+        return view('components.pdf-viewer', ['pdfSrc' => $pdfSrc]);
     }
 }

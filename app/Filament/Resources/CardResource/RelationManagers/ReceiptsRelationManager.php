@@ -35,7 +35,6 @@ class ReceiptsRelationManager extends RelationManager
                                 ->label('Date')
                                 ->displayFormat('dMY')
                                 ->default(now()) // Get date from created_at
-                                ->disabled()
                                 ->native(false)->inlineLabel(),
                             Forms\Components\TextInput::make('year')
                                 ->default(fn($get) => $get('created_at') ? Carbon::parse($get('created_at'))->year : Carbon::now()->year) // Get year from created_at
@@ -50,11 +49,25 @@ class ReceiptsRelationManager extends RelationManager
                     ->columns(4)
                     ->columnSpanFull(),
 
+                Forms\Components\Select::make('card_id')
+                    ->searchable()
+                    ->inlineLabel()
+                    ->default(function () {
+                        return $this->ownerRecord->id;
+                    })
+                    ->preload()
+                    ->relationship('card', 'card_name'),
                 Forms\Components\Select::make('customer_id')
                     ->searchable()
                     ->inlineLabel()
+                    ->default(function () {
+                        $card = Card::find($this->ownerRecord->id);
+                        return $card->customer_id;
+                    })
                     ->preload()
                     ->relationship('customer', 'name'),
+
+
                 Forms\Components\TextInput::make('modified_by')
                     ->inlineLabel()
                     ->maxLength(255),

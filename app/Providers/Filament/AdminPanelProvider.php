@@ -2,7 +2,7 @@
 
 namespace App\Providers\Filament;
 
-use App\Filament\Widgets\CalenderWidget;
+use App\Filament\Auth\CustomLogin;
 use App\Filament\Widgets\MonthlyRevenueReport;
 use App\Filament\Widgets\RemindersCalender;
 use App\Filament\Widgets\TopCustomer;
@@ -17,7 +17,6 @@ use Filament\Pages;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
-use Filament\Widgets;
 use Hasnayeen\Themes\ThemesPlugin;
 use Howdu\FilamentRecordSwitcher\FilamentRecordSwitcherPlugin;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
@@ -38,7 +37,6 @@ use lockscreen\FilamentLockscreen\Http\Middleware\LockerTimer;
 use Rmsramos\Activitylog\ActivitylogPlugin;
 use Swis\Filament\Backgrounds\FilamentBackgroundsPlugin;
 use Tapp\FilamentAuthenticationLog\FilamentAuthenticationLogPlugin;
-use TomatoPHP\FilamentNotes\Filament\Widgets\NotesWidget;
 use TomatoPHP\FilamentNotes\FilamentNotesPlugin;
 use TomatoPHP\FilamentPWA\FilamentPWAPlugin;
 use Awcodes\FilamentQuickCreate\QuickCreatePlugin;
@@ -54,7 +52,7 @@ class AdminPanelProvider extends PanelProvider
             ->favicon(asset('assets/favicon.ico'))
             ->id('admin')
             ->path('admin')
-            ->login()
+            ->login(CustomLogin::class)
             ->colors([
                 'primary' => Color::Amber,
             ])

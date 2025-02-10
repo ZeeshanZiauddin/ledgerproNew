@@ -10,8 +10,10 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use phpDocumentor\Reflection\PseudoTypes\LowercaseString;
 use Spatie\Permission\Models\Role;
 use STS\FilamentImpersonate\Tables\Actions\Impersonate;
+use Illuminate\Support\Str;
 
 class UserResource extends Resource
 {
@@ -24,11 +26,21 @@ class UserResource extends Resource
     {
         return $form
             ->schema([
+
                 Forms\Components\TextInput::make('name')
                     ->label('Full Name')
                     ->required()
-                    ->maxLength(255),
+                    ->maxLength(length: 255)
+                    ->afterStateUpdated(function ($state, callable $set) {
+                        $set('username', Str::slug(Str::lower($state), '_'));
+                    })
+                    ->live(onBlur: true),
 
+                Forms\Components\TextInput::make('username')
+                    ->label('Username')
+                    ->required()
+                    ->unique('users', 'username', ignorable: fn($record) => $record)
+                    ->maxLength(255),
                 Forms\Components\TextInput::make('email')
                     ->email()
                     ->required()
@@ -56,6 +68,10 @@ class UserResource extends Resource
                     ->circular(),
 
                 Tables\Columns\TextColumn::make('name')
+                    ->sortable()
+                    ->searchable(),
+
+                Tables\Columns\TextColumn::make('username')
                     ->sortable()
                     ->searchable(),
 
@@ -96,7 +112,7 @@ class UserResource extends Resource
     {
         return [
             'index' => Pages\ListUsers::route('/'),
-            'edit' => Pages\EditUser::route('/{record}/edit'),
+            //'edit' => Pages\EditUser::route('/{record}/edit'),
 
         ];
     }

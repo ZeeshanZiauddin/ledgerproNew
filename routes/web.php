@@ -18,4 +18,4 @@ Route::get('/ticketdetails/preview', [TicketSaleDetailPDFController::class, 'pre
 
 Route::post('/api/update-itinerary', [ItineraryController::class, 'updateItinerary']);
 
-Route::get('/admin/refund-report/pdf', [RefundReport::class, 'generatePdf'])->name('filament.pages.refund-report.pdf');
+Route::get('/generate-pdf-preview', [RefundReport::class, 'generatePdf'])->name('generate.pdf.preview');

@@ -16,6 +16,7 @@ class AppServiceProvider extends ServiceProvider
     {
         FilamentAsset::register([
             Js::make('cardRepeator', resource_path('js/app/cardRepeator.js')),
+            Js::make('custom', resource_path('js/custom.js')),
         ]);
 
     }

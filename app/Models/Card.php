@@ -62,6 +62,11 @@ class Card extends Model
         return $this->hasMany(RefundPassenger::class, 'card_id');
     }
 
+    public function otherSales()
+    {
+        return $this->hasMany(CardOtherSale::class, 'card_id');
+    }
+
 
     public function flights()
     {
@@ -165,4 +170,6 @@ class Card extends Model
             ];
         }
     }
+
+
 }

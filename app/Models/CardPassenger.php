@@ -62,6 +62,12 @@ class CardPassenger extends Model
         return $this->belongsToMany(Payment::class, 'payment_passenger')
             ->withTimestamps();
     }
+    public function paySupplier()
+    {
+        return $this->belongsToMany(PaySupplier::class, 'card_passenger_pay_supplier')
+            ->withPivot(['amount'])
+            ->withTimestamps();
+    }
 
 
 }

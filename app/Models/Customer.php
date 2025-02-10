@@ -47,8 +47,12 @@ class Customer extends Model
     public function receipts()
     {
         return $this->hasMany(Receipt::class);
-
     }
+    public function payRefunds()
+    {
+        return $this->hasMany(PayRefund::class);
+    }
+
 
     /**
      * Generate a unique code based on the customer's name.

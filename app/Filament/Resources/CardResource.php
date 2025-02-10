@@ -111,6 +111,7 @@ class CardResource extends Resource
                                 ->native(false)
                                 ->inlineLabel()
                                 ->searchable()
+                                ->preload()
                                 ->live(debounce: 300)
                                 ->afterStateUpdated(function ($state, $set) {
                                     if ($state) {
@@ -130,6 +131,7 @@ class CardResource extends Resource
                                 ->nullable()
                                 ->inlineLabel()
                                 ->searchable()
+                                ->preload()
                                 ->native(false)
                                 ->placeholder('Select a Supplier'),
 
@@ -441,39 +443,44 @@ class CardResource extends Resource
                             Tabs\Tab::make('Other Sale')
                                 ->icon('heroicon-o-rocket-launch')
                                 ->schema([
-                                    TableRepeater::make('flights')
-                                        ->relationship(name: 'flights')
+                                    TableRepeater::make('otherSales')
+                                        ->relationship(name: 'otherSales')
                                         ->hiddenLabel()
                                         ->headers([
-                                            Header::make('airline')->width('250px')->markAsRequired(),
-                                            Header::make('flight')->width('120px'),
-                                            Header::make('class')->width('180px'),
-                                            Header::make('date')->width('150px'),
-                                            Header::make('from')->width('150px'),
-                                            Header::make('to')->width('140px'),
-                                            Header::make('Dep time')->width('140px'),
-                                            Header::make('Arr time')->width('140px'),
+                                            Header::make('Details')->markAsRequired(),
+                                            Header::make('Sale')->width('140px'),
+                                            Header::make('Cost')->width('140px'),
+                                            Header::make('Issue Date')->width('180px'),
+                                            Header::make('Supplier')->width('200px'),
                                         ])
                                         ->label('Flights')
                                         ->schema([
-                                            Forms\Components\TextInput::make('airline')
+                                            Forms\Components\Hidden::make('card_id')
+                                                ->default(function ($get) {
+                                                    return $get('id');
+                                                }),
+                                            Forms\Components\TextInput::make('details')
+                                                ->placeholder('Sale details')
                                                 ->required(),
-                                            Forms\Components\TextInput::make('flight')
-                                                ->required(),
-                                            Forms\Components\TextInput::make('class')
-                                                ->required(),
-                                            Forms\Components\DatePicker::make('date')
-                                                ->displayFormat('dM')
+                                            Forms\Components\TextInput::make('sale')
+                                                ->numeric()
+                                                ->placeholder('Sale')
+
+                                                ->default(0.00),
+                                            Forms\Components\TextInput::make('cost')
+                                                ->numeric()
+                                                ->placeholder('Cost')
+                                                ->default(0.00),
+                                            Forms\Components\DatePicker::make('issue_date')
+                                                ->displayFormat('d/M/Y')
                                                 ->native(false)
+                                                ->placeholder('dd/mm/yy')
                                                 ->required(),
-                                            Forms\Components\TextInput::make('from')
-                                                ->required(),
-                                            Forms\Components\TextInput::make('to')
-                                                ->required(),
-                                            Forms\Components\TextInput::make('dep')
-                                                ->required(),
-                                            Forms\Components\TextInput::make('arr')
-                                                ->nullable(),
+                                            Forms\Components\Select::make('supplier_id')
+                                                ->relationship('supplier', 'name')
+                                                ->searchable()
+                                                ->preload(),
+
                                         ])
                                         ->default([])
                                         ->columnSpanFull()
@@ -496,8 +503,8 @@ class CardResource extends Resource
                                             Header::make('Refund Ven Chr')->width('140px'),
                                             Header::make('Sale Return')->width('140px'),
                                             Header::make('Pur Return')->width('140px'),
-                                            Header::make('ApplyDate')->width('150px'),
-                                            Header::make('ApproveDate')->width('150px'),
+                                            Header::make('ApplyDate')->width('180px'),
+                                            Header::make('ApproveDate')->width('180px'),
                                             Header::make('Issued')->width('140px'),
                                         ])
                                         ->schema([
@@ -505,16 +512,28 @@ class CardResource extends Resource
                                             Forms\Components\Hidden::make('card_passenger_id')->nullable(),
                                             Forms\Components\Hidden::make('card_id')->nullable(),
                                             Forms\Components\TextInput::make('name')->required(),
-                                            Forms\Components\TextInput::make('sale')->default(0)->nullable(),
+                                            Forms\Components\TextInput::make('sale')->default(0)->nullable()
+                                            ,
                                             Forms\Components\TextInput::make('cost')->default(0)->nullable(),
                                             Forms\Components\TextInput::make('tax')->default(0)->nullable(),
-                                            Forms\Components\TextInput::make('ref_to_cus')->nullable(),
-                                            Forms\Components\TextInput::make('ref_to_vendor')->nullable(),
+                                            Forms\Components\TextInput::make('ref_to_cus')->nullable()
+                                                ->afterStateUpdated(function ($get, $set, $state) {
+                                                    $val = $get('sale') - $state;
+
+                                                    $set('sale_return', $val);
+                                                })
+                                                ->live(onBlur: true),
+                                            Forms\Components\TextInput::make('ref_to_vendor')->nullable()
+                                                ->afterStateUpdated(function ($get, $set, $state) {
+                                                    $val = ($get('cost') + $get('tax')) - $state;
+                                                    $set('pur_return', $val);
+                                                })
+                                                ->live(onBlur: true),
                                             Forms\Components\TextInput::make('sale_return')->default(0)->nullable(),
                                             Forms\Components\TextInput::make('pur_return')->default(0)->nullable(),
                                             Forms\Components\DatePicker::make('apply_date')->nullable(),
                                             Forms\Components\DatePicker::make('approve_date')->nullable(),
-                                            Forms\Components\Select::make('user_id')->relationship('user', 'name')->default(0)->nullable(),
+                                            Forms\Components\Hidden::make('user_id')->nullable()->default(auth()->user()->id),
                                         ])
                                         ->addable(false)
                                         ->columnSpanFull()
