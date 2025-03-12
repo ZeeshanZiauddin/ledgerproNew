@@ -7,6 +7,8 @@ use App\Filament\Widgets\MonthlyRevenueReport;
 use App\Filament\Widgets\RemindersCalender;
 use App\Filament\Widgets\TopCustomer;
 use App\Filament\Widgets\TopSalesPerson;
+use Awcodes\Overlook\OverlookPlugin;
+use Awcodes\Overlook\Widgets\OverlookWidget;
 use Awcodes\Recently\RecentlyPlugin;
 use Awcodes\Recently\Resources\RecentEntryResource;
 use BezhanSalleh\FilamentShield\FilamentShieldPlugin;
@@ -66,6 +68,7 @@ class AdminPanelProvider extends PanelProvider
                 TopCustomer::class,
                 MonthlyRevenueReport::class,
                 RemindersCalender::class,
+                OverlookWidget::class,
             ])
             ->middleware([
                 EncryptCookies::class,
@@ -105,6 +108,22 @@ class AdminPanelProvider extends PanelProvider
                     ),
                 FilamentApexChartsPlugin::make(),
                 SpotlightPlugin::make(),
+                OverlookPlugin::make()
+                    ->sort(0)
+                    ->includes([
+                        \App\Filament\Resources\CardResource::class,
+                        \App\Filament\Resources\InquiryResource::class,
+                        \App\Filament\Resources\ReceiptResource::class,
+                        \App\Filament\Resources\PayRefundResource::class,
+                    ])
+                    ->columns([
+                        'default' => 1,
+                        'sm' => 2,
+                        'md' => 3,
+                        'lg' => 4,
+                        'xl' => 5,
+                        '2xl' => null,
+                    ]),
                 QuickCreatePlugin::make()
                     ->includes([
                         \App\Filament\Resources\InquiryResource::class,

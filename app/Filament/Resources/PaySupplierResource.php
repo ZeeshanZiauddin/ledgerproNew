@@ -59,7 +59,9 @@ class PaySupplierResource extends Resource
                             ->label('Supplier')
                             ->inlineLabel()
                             ->relationship('supplier', 'name')
-                            ->required(),
+                            ->required()
+                            ->searchable()
+                            ->preload(),
                         Forms\Components\TextInput::make('cheque_no')
                             ->label('Chq No')
                             ->inlineLabel(),
@@ -70,10 +72,13 @@ class PaySupplierResource extends Resource
                             ->label('Paid Account')
                             ->inlineLabel()
                             ->relationship('bank', 'name')
-                            ->required(),
+                            ->required()
+                            ->searchable()
+                            ->preload(),
                         Forms\Components\TextInput::make('total')
                             ->label('Amount')
                             ->inlineLabel()
+                            ->default(0)
                             ->required(),
 
                         Forms\Components\Textarea::make('details')

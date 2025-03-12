@@ -7,12 +7,14 @@ use App\Filament\Resources\CardResource\RelationManagers\ReceiptsRelationManager
 use App\Models\Airline;
 use App\Models\Card;
 use App\Models\CardItinerary;
+use App\Models\Receipt;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Filament\Forms;
 use Filament\Forms\Components\Actions\Action;
 use Filament\Forms\Components\Grid;
 use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
@@ -22,6 +24,7 @@ use Filament\Infolists;
 use Filament\Infolists\Infolist;
 use Filament\Resources\Resource;
 use Filament\Support\Enums\FontFamily;
+use Filament\Support\RawJs;
 use Filament\Tables;
 use Filament\Tables\Actions\DeleteBulkAction;
 use Filament\Tables\Filters\QueryBuilder\Constraints\DateConstraint;
@@ -49,176 +52,181 @@ class CardResource extends Resource
         return $form
             ->schema(components:
                 [
-                    Group::make()
-                        ->schema([
-                            Forms\Components\TextInput::make('card_name')
-                                ->default(self::generateCardName())
-                                ->disabled() // Disable the field to prevent manual editing
-                                ->inlineLabel()
-                                ->label('Card No.'),
-                            Forms\Components\Hidden::make('id'),
-                            Forms\Components\Hidden::make('current_itinerary'),
-                            Forms\Components\Hidden::make('itinerary_ids'),
-
-
-
-                            Forms\Components\DatePicker::make('created_at')
-                                ->label('Date')
-                                ->displayFormat('d-M-Y')
-                                ->native(false)
-                                ->inlineLabel()
-                                ->default(fn() => Carbon::now())->disabled(),
-
-                            Forms\Components\Select::make('user_id')
-                                ->inlineLabel()
-                                ->default(fn() => auth()->user()->id)
-                                ->relationship('user', 'name')->disabled(),
-                            Forms\Components\Select::make('airline_id')
-                                ->placeholder('000')
-                                ->inlineLabel()
-                                ->relationship('airline', modifyQueryUsing: fn(Builder $query) => $query->orderBy('code')->orderBy('iata'), )
-                                ->getOptionLabelFromRecordUsing(fn(Model $record) => "{$record->code} {$record->iata}")
-                                ->searchable(['code', 'iata'])
-                                ->native(false)
-                                ->preload()
-                                ->getOptionLabelUsing(function ($value) {
-                                    $airline = Airline::find($value);
-                                    return $airline ? $airline->iata . ' - ' . $airline->code : 'Unknown';
-                                })
-                                ->afterStateUpdated(function ($state, $set, $get) {
-                                    if ($state) {
-                                        $passengers = $get('passenger') ?? [];
-                                        // Update the 'ticket_1' field for each passenger
-                                        $updatedPassengers = array_map(function ($passenger) use ($state) {
-                                            $passenger['ticket_1'] = $state;
-                                            return $passenger;
-                                        }, $passengers);
-
-                                        // Set the updated repeater data
-                                        $set('passenger', $updatedPassengers);
-                                    }
-                                }),
-                        ])
-                        ->columns(4)
-                        ->columnSpanFull(),
-
-                    Group::make()
+                    Section::make()
                         ->schema([
 
-                            Forms\Components\Select::make('customer_id')
-                                ->relationship('customer', 'name')  // Relationship to the Customer model, assuming it has a `name` field
-                                ->nullable()
-                                ->native(false)
-                                ->inlineLabel()
-                                ->searchable()
-                                ->preload()
-                                ->live(debounce: 300)
-                                ->afterStateUpdated(function ($state, $set) {
-                                    if ($state) {
-                                        $customer = \App\Models\Customer::find($state);
-                                        if ($customer) {
-                                            $set('contact_name', $customer->name);
-                                            $set('contact_email', $customer->email);
-                                            $set('contact_mobile', $customer->phone);
-                                            $set('contact_address', $customer->address);
-                                        }
-                                    }
-                                })
-                                ->placeholder('Select a Customer'),
 
-                            Forms\Components\Select::make('supplier_id')
-                                ->relationship('supplier', 'name')  // Relationship to the Supplier model, assuming it has a `name` field
-                                ->nullable()
-                                ->inlineLabel()
-                                ->searchable()
-                                ->preload()
-                                ->native(false)
-                                ->placeholder('Select a Supplier'),
+                            Group::make()
+                                ->schema([
+                                    Forms\Components\TextInput::make('card_name')
+                                        ->default(self::generateCardName())
+                                        ->disabled() // Disable the field to prevent manual editing
+                                        ->inlineLabel()
+                                        ->label('Card No.'),
+                                    Forms\Components\Hidden::make('id'),
+                                    Forms\Components\Hidden::make('current_itinerary'),
+                                    Forms\Components\Hidden::make('itinerary_ids'),
 
-                            Forms\Components\Select::make('inquiry_id')
-                                ->relationship('inquiry', 'inquiry_name')  // Relationship to the Supplier model, assuming it has a `name` field
-                                ->nullable()
-                                ->preload()
-                                ->inlineLabel()
-                                ->searchable()  // Make the field searchable
-                                ->placeholder(placeholder: 'Inquiry ID'),
-                        ])->columns(1)->columnSpan(1),
 
-                    // Group for contact details
-                    Group::make()
-                        ->schema([
 
-                            Forms\Components\TextInput::make('contact_name')
-                                ->nullable()
-                                ->inlineLabel(),
+                                    Forms\Components\DatePicker::make('created_at')
+                                        ->label('Date')
+                                        ->displayFormat('d-M-Y')
+                                        ->native(false)
+                                        ->inlineLabel()
+                                        ->default(fn() => Carbon::now())->disabled(),
 
-                            Forms\Components\TextInput::make('contact_email')
-                                ->nullable()
-                                ->inlineLabel(),
-                            Forms\Components\TextInput::make('contact_address')
-                                ->inlineLabel()
-                                ->nullable(),
-                        ])->columns(1)->columnSpan(2),
-                    Group::make()
-                        ->schema([
+                                    Forms\Components\Select::make('user_id')
+                                        ->inlineLabel()
+                                        ->default(fn() => auth()->user()->id)
+                                        ->relationship('user', 'name')->disabled(),
+                                    Forms\Components\Select::make('airline_id')
+                                        ->placeholder('000')
+                                        ->inlineLabel()
+                                        ->relationship('airline', modifyQueryUsing: fn(Builder $query) => $query->orderBy('code')->orderBy('iata'), )
+                                        ->getOptionLabelFromRecordUsing(fn(Model $record) => "{$record->code} {$record->iata}")
+                                        ->searchable(['code', 'iata'])
+                                        ->native(false)
+                                        ->preload()
+                                        ->getOptionLabelUsing(function ($value) {
+                                            $airline = Airline::find($value);
+                                            return $airline ? $airline->iata . ' - ' . $airline->code : 'Unknown';
+                                        })
+                                        ->afterStateUpdated(function ($state, $set, $get) {
+                                            if ($state) {
+                                                $passengers = $get('passenger') ?? [];
+                                                // Update the 'ticket_1' field for each passenger
+                                                $updatedPassengers = array_map(function ($passenger) use ($state) {
+                                                    $passenger['ticket_1'] = $state;
+                                                    return $passenger;
+                                                }, $passengers);
 
-                            Forms\Components\TextInput::make('contact_mobile')
-                                ->inlineLabel()->label('Mobile No')->nullable(),
-                            Forms\Components\TextInput::make('contact_home_number')
-                                ->inlineLabel()->label('Home No')->nullable(),
-                            Textarea::make('itinerary')
-                                ->hiddenLabel()
-                                ->placeholder("Paste the itinerary here...")
-                                ->rows(1)
-                                ->hintAction(
-                                    Action::make('copy')
-                                        ->icon('heroicon-s-clipboard')
-                                        ->modalWidth('xl')
-                                        ->form(function (Forms\Get $get, $operation) {
-                                            $isCreate = $operation === 'create';
-                                            $itineraries = [];
+                                                // Set the updated repeater data
+                                                $set('passenger', $updatedPassengers);
+                                            }
+                                        }),
+                                ])
+                                ->columns(4)
+                                ->columnSpanFull(),
 
-                                            if ($isCreate) {
-                                                // For "create" operation: Fetch all itineraries from `itinerary_ids`
-                                                $itineraryIds = $get('itinerary_ids') ?? [];
-                                                $itineraries = CardItinerary::whereIn('id', $itineraryIds)->get()->toArray();
-                                            } else {
-                                                // For "edit" operation: Fetch itineraries by card ID
-                                                $cardId = $get('id');
-                                                if ($cardId) {
-                                                    $itineraries = CardItinerary::where('card_id', $cardId)->get()->toArray();
+                            Group::make()
+                                ->schema([
+
+                                    Forms\Components\Select::make('customer_id')
+                                        ->relationship('customer', 'name')  // Relationship to the Customer model, assuming it has a `name` field
+                                        ->nullable()
+                                        ->native(false)
+                                        ->inlineLabel()
+                                        ->searchable()
+                                        ->preload()
+                                        ->live(debounce: 300)
+                                        ->afterStateUpdated(function ($state, $set) {
+                                            if ($state) {
+                                                $customer = \App\Models\Customer::find($state);
+                                                if ($customer) {
+                                                    $set('contact_name', $customer->name);
+                                                    $set('contact_email', $customer->email);
+                                                    $set('contact_mobile', $customer->phone);
+                                                    $set('contact_address', $customer->address);
                                                 }
                                             }
-
-                                            // Generate the repeater form
-                                            return [
-                                                Forms\Components\Repeater::make('itineraries')
-                                                    ->schema([
-                                                        Forms\Components\Textarea::make('itinerary')
-                                                            ->rows(4)
-                                                            ->label('Itinerary Details')
-                                                            ->default(fn($record) => $record['itinerary'] ?? null),
-                                                    ])
-                                                    ->hiddenLabel()
-                                                    ->addable(false)
-                                                    ->reorderable(false)
-                                                    ->deletable(false)
-                                                    ->default($itineraries) // Populate repeater with fetched itineraries
-                                                    ->label('Itineraries')
-                                                    ->columns(1),
-                                            ];
                                         })
-                                )
-                                ->hintAction(
-                                    Action::make('paste')
-                                        ->icon('heroicon-s-clipboard')
-                                        ->action(function ($livewire, $state) {
+                                        ->placeholder('Select a Customer'),
 
-                                            $livewire->dispatch('paste-from-clipboard');
-                                        })
-                                )
-                                ->extraAttributes([
-                                    'x-data' => '{
+                                    Forms\Components\Select::make('supplier_id')
+                                        ->relationship('supplier', 'name')  // Relationship to the Supplier model, assuming it has a `name` field
+                                        ->nullable()
+                                        ->inlineLabel()
+                                        ->searchable()
+                                        ->preload()
+                                        ->native(false)
+                                        ->placeholder('Select a Supplier'),
+
+                                    Forms\Components\Select::make('inquiry_id')
+                                        ->relationship('inquiry', 'inquiry_name')  // Relationship to the Supplier model, assuming it has a `name` field
+                                        ->nullable()
+                                        ->preload()
+                                        ->inlineLabel()
+                                        ->searchable()  // Make the field searchable
+                                        ->placeholder(placeholder: 'Inquiry ID'),
+                                ])
+                                ->columns(1)->columnSpan(1),
+
+                            // Group for contact details
+                            Group::make()
+                                ->schema([
+
+                                    Forms\Components\TextInput::make('contact_name')
+                                        ->nullable()
+                                        ->inlineLabel(),
+
+                                    Forms\Components\TextInput::make('contact_email')
+                                        ->nullable()
+                                        ->inlineLabel(),
+                                    Forms\Components\TextInput::make('contact_address')
+                                        ->inlineLabel()
+                                        ->nullable(),
+                                ])->columns(1)->columnSpan(2),
+                            Group::make()
+                                ->schema([
+
+                                    Forms\Components\TextInput::make('contact_mobile')
+                                        ->inlineLabel()->label('Mobile No')->nullable(),
+                                    Forms\Components\TextInput::make('contact_home_number')
+                                        ->inlineLabel()->label('Home No')->nullable(),
+                                    Textarea::make('itinerary')
+                                        ->hiddenLabel()
+                                        ->placeholder("Paste the itinerary here...")
+                                        ->rows(1)
+                                        ->hintAction(
+                                            Action::make('copy')
+                                                ->icon('heroicon-s-clipboard')
+                                                ->modalWidth('xl')
+                                                ->form(function (Forms\Get $get, $operation) {
+                                                    $isCreate = $operation === 'create';
+                                                    $itineraries = [];
+
+                                                    if ($isCreate) {
+                                                        // For "create" operation: Fetch all itineraries from `itinerary_ids`
+                                                        $itineraryIds = $get('itinerary_ids') ?? [];
+                                                        $itineraries = CardItinerary::whereIn('id', $itineraryIds)->get()->toArray();
+                                                    } else {
+                                                        // For "edit" operation: Fetch itineraries by card ID
+                                                        $cardId = $get('id');
+                                                        if ($cardId) {
+                                                            $itineraries = CardItinerary::where('card_id', $cardId)->get()->toArray();
+                                                        }
+                                                    }
+
+                                                    // Generate the repeater form
+                                                    return [
+                                                        Forms\Components\Repeater::make('itineraries')
+                                                            ->schema([
+                                                                Forms\Components\Textarea::make('itinerary')
+                                                                    ->rows(4)
+                                                                    ->label('Itinerary Details')
+                                                                    ->default(fn($record) => $record['itinerary'] ?? null),
+                                                            ])
+                                                            ->hiddenLabel()
+                                                            ->addable(false)
+                                                            ->reorderable(false)
+                                                            ->deletable(false)
+                                                            ->default($itineraries) // Populate repeater with fetched itineraries
+                                                            ->label('Itineraries')
+                                                            ->columns(1),
+                                                    ];
+                                                })
+                                        )
+                                        ->hintAction(
+                                            Action::make('paste')
+                                                ->icon('heroicon-s-clipboard')
+                                                ->action(function ($livewire, $state) {
+
+                                                    $livewire->dispatch('paste-from-clipboard');
+                                                })
+                                        )
+                                        ->extraAttributes([
+                                            'x-data' => '{
                                         copyToClipboard(text) {
                                             if (navigator.clipboard && navigator.clipboard.writeText) {
                                                 navigator.clipboard.writeText(text).then(() => {
@@ -257,19 +265,20 @@ class CardResource extends Resource
                                             }
                                         }
                                     }',
-                                    'x-on:copy-to-clipboard.window' => 'copyToClipboard($event.detail.text)',
-                                    'x-on:paste-from-clipboard.window' => 'pasteFromClipboard()',
-                                    'x-ref' => 'itinerary',
-                                    'class' => 'hidden',
-                                ])
-                                ->afterStateUpdated(
-                                    function ($state, $set, $get, $operation) {
-                                        static::processItinerary($state, $set, $get, $operation);
-                                    }
-                                )
-                                ->live(debounce: 200)
+                                            'x-on:copy-to-clipboard.window' => 'copyToClipboard($event.detail.text)',
+                                            'x-on:paste-from-clipboard.window' => 'pasteFromClipboard()',
+                                            'x-ref' => 'itinerary',
+                                            'class' => 'hidden',
+                                        ])
+                                        ->afterStateUpdated(
+                                            function ($state, $set, $get, $operation) {
+                                                static::processItinerary($state, $set, $get, $operation);
+                                            }
+                                        )
+                                        ->live(debounce: 200)
 
-                        ]),
+                                ]),
+                        ])->compact()->columns(4),
                     Tabs::make('Tabs')
                         ->tabs([
                             Tabs\Tab::make('Passengers')
@@ -279,6 +288,7 @@ class CardResource extends Resource
                                         ->relationship('passengers')
                                         ->default([])
                                         ->hiddenLabel()
+                                        ->extraAttributes(['data-repeater' => 'passengers'])
                                         ->headers([
                                             Header::make('No')->width('80px'),
                                             Header::make('Passenger Name')->width('250px')->markAsRequired(),
@@ -336,6 +346,7 @@ class CardResource extends Resource
 
                                             Forms\Components\TextInput::make('margin')
                                                 ->nullable()
+                                                ->live()
                                                 ->extraAttributes(['data-field' => 'margin'])
                                                 ->default(0),
 
@@ -519,7 +530,6 @@ class CardResource extends Resource
                                             Forms\Components\TextInput::make('ref_to_cus')->nullable()
                                                 ->afterStateUpdated(function ($get, $set, $state) {
                                                     $val = $get('sale') - $state;
-
                                                     $set('sale_return', $val);
                                                 })
                                                 ->live(onBlur: true),
@@ -608,36 +618,121 @@ class CardResource extends Resource
                                 ]),
                         ])
                         ->columnSpanFull(),
-
                     Grid::make([
-                        'default' => 5,
+                        'default' => 8,
                     ])
                         ->schema([
+                            TextInput::make('tkt_sale')
+                                ->label('Tkt Sale')
+                                ->afterStateHydrated(function (TextInput $component, Get $get, Set $set) {
+                                    $passengers = $get('passengers');
+                                    if (is_array($passengers)) {
+                                        $totalSale = array_sum(array_column($passengers, 'sale'));
+                                    } else {
+                                        $totalSale = 0;
+                                    }
+                                    $set('tkt_sale', $totalSale);
+                                })
+                                ->mask(RawJs::make('$money($input)'))
+                                ->stripCharacters(',')
+                                ->numeric(),
+                            TextInput::make('tkt_cost')
+                                ->label('Tkt Cost')
+                                ->afterStateHydrated(function (TextInput $component, Get $get, Set $set) {
+                                    $passengers = $get('passengers');
+                                    if (is_array($passengers)) {
+                                        $totalSale = array_sum(array_column($passengers, 'cost'));
+                                    } else {
+                                        $totalSale = 0;
+                                    }
+                                    $set('tkt_cost', $totalSale);
+                                })
+                                ->mask(RawJs::make('$money($input)'))
+                                ->stripCharacters(',')
+                                ->numeric(),
+                            TextInput::make('other_sale')
+                                ->label('Other sale')
+                                ->afterStateHydrated(function (TextInput $component, Get $get, Set $set) {
+                                    $Other = $get('otherSales');
+                                    if (is_array($Other)) {
+                                        $totalSale = array_sum(array_column($Other, 'sale'));
+                                    } else {
+                                        $totalSale = 0;
+                                    }
+                                    $set('other_sale', $totalSale);
+                                }),
+                            TextInput::make('other_cost')
+                                ->label('Other Cost')
+                                ->afterStateHydrated(function (TextInput $component, Get $get, Set $set) {
+                                    $Other = $get('otherSales');
+                                    if (is_array($Other)) {
+                                        $totalSale = array_sum(array_column($Other, column_key: 'cost'));
+                                    } else {
+                                        $totalSale = 0;
+                                    }
+                                    $set('other_cost', $totalSale);
+                                }),
+                            TextInput::make('sale_return')
+                                ->label('Sale Return')
+                                ->afterStateHydrated(function (TextInput $component, Get $get, Set $set) {
+                                    $refund = $get('passenger_refunds');
+                                    if (is_array($refund)) {
+                                        $sale = array_sum(array_column($refund, 'sale_return'));
+                                    } else {
+                                        $sale = 0;
+                                    }
+                                    $set('sale_return', $sale);
+                                }),
+                            TextInput::make('pur_return')
+                                ->label('Pur Return')
+                                ->afterStateHydrated(function (TextInput $component, Get $get, Set $set) {
+                                    $refund = $get('passenger_refunds');
+                                    if (is_array($refund)) {
+                                        $pur = array_sum(array_column($refund, 'pur_return'));
+                                    } else {
+                                        $pur = 0;
+                                    }
+                                    $set('pur_return', $pur);
+                                }),
+                            TextInput::make('total_receipt')
+                                ->label('Total Receipt')
+                                ->afterStateHydrated(function (Get $get, Set $set) {
+                                    $id = $get('id');
+                                    $receipts = Receipt::where('card_id', $id)->get()->toArray();
+                                    if (is_array($receipts)) {
+                                        $total = array_sum(array_column($receipts, 'total'));
+                                    } else {
+                                        $total = 0;
+                                    }
+                                    $set('total_receipt', $total);
+                                }),
+                            TextInput::make(name: 'refund_paid')
+                                ->label('Refund Paid')
+                                ->afterStateHydrated(function (Get $get, Set $set) {
+
+                                }),
+
 
                             TextInput::make('sales_price')
                                 ->label('Sales')
+
                                 ->extraAttributes(['data-field' => 'total_sale'])
-                                ->default(0)
-                                ->inlineLabel(),
+                                ->default(0),
+
 
                             TextInput::make('net_cost')
                                 ->label('Cost')
                                 ->extraAttributes(['data-field' => 'total_cost'])
-                                ->default(0)
-                                ->inlineLabel(),
+                                ->default(0),
                             TextInput::make('tax')
                                 ->extraAttributes(['data-field' => 'total_tax'])
-                                ->default(0)
-                                ->inlineLabel(),
+                                ->default(0),
                             TextInput::make('margin')
                                 ->extraAttributes(['data-field' => 'total_margin'])
-                                ->default(0)
-                                ->inlineLabel(),
-
+                                ->default(0),
                             Forms\Components\TextInput::make('total_paid')
                                 ->label('Paid')
                                 ->readOnly()
-                                ->inlineLabel()
                                 ->default(0)
                                 ->afterStateHydrated(function ($set, $record) {
                                     if ($record) {
@@ -645,7 +740,7 @@ class CardResource extends Resource
                                     }
                                 }),
                         ])
-                        ->columns(5),
+                        ->columns(11),
                 ])
             ->columns(4);
     }

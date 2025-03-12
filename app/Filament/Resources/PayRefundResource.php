@@ -69,6 +69,8 @@ class PayRefundResource extends Resource
                                     ->inlineLabel()
                                     ->required(),
 
+                                Forms\Components\Hidden::make('card_id'),
+
                                 Forms\Components\Select::make('modified_by')
                                     ->relationship('modifier', 'name')
                                     ->label('Modified By')
@@ -82,14 +84,16 @@ class PayRefundResource extends Resource
                                     ->label('Customer')
                                     ->required()
                                     ->inlineLabel()
-                                    ->searchable(),
+                                    ->searchable()
+                                    ->preload(),
 
                                 Forms\Components\Select::make('bank_id')
                                     ->relationship('bank', 'name')
                                     ->label('Bank')
                                     ->nullable()
                                     ->inlineLabel()
-                                    ->searchable(),
+                                    ->searchable()
+                                    ->preload(),
 
                                 Forms\Components\TextInput::make('cheque_no')
                                     ->label('Chq No')
@@ -98,7 +102,7 @@ class PayRefundResource extends Resource
 
                                 Forms\Components\TextInput::make('total_amount')
                                     ->label('Total Amount')
-
+                                    ->default(0)
                                     ->inlineLabel()
                                     ->required(),
                                 Forms\Components\Textarea::make('details')
@@ -145,7 +149,6 @@ class PayRefundResource extends Resource
                                                 )
                                                 ->default(function (Get $get, ?PayRefund $record) {
                                                     if ($record) {
-                                                        // Get already allocated refund IDs for this PayRefund record
                                                         return $record->refundPassengers()->pluck('refund_passengers.id')->toArray();
                                                     }
                                                     return [];
@@ -175,7 +178,7 @@ class PayRefundResource extends Resource
                                                 'id' => $refund->id,
                                                 'card_name' => optional($refund->card)->card_name,
                                                 'record_no' => $refund->record_no,
-                                                'customer_char' => $refund->ref_to_cus,
+                                                'amount' => $refund->ref_to_cus,
                                             ];
                                         })->toArray();
 
@@ -198,52 +201,54 @@ class PayRefundResource extends Resource
                             ])
                             ->schema(
                                 [
-
-
                                     TableRepeater::make('passengers')
+                                        ->relationship('refundPassengers')
                                         ->default([])
-                                        ->afterStateHydrated(function ($state, $record, $set) {
-                                            if ($record) { // Ensure we are editing, not creating
-                                                $record->loadMissing('refundPassengers.card'); // Eager-load relationships
-                                                $totalAmount = $record->refundPassengers->sum('ref_to_cus');
-
-                                                $set('passengers', $record->refundPassengers->map(function ($refund) {
-                                                    return [
-                                                        'id' => $refund->id,
-                                                        'card_name' => optional($refund->card)->card_name,
-                                                        'record_no' => $refund->record_no,
-                                                        'customer_char' => $refund->ref_to_cus,
-                                                    ];
-                                                })->toArray());
-                                                $set('total_amount', $totalAmount);
-                                            }
-                                        })
                                         ->afterStateUpdated(function ($state, $record, $set) {
                                             if ($record) {
-                                                // Get current refund IDs in the repeater
-                                                $selectedRefunds = collect($state)->pluck('id')->toArray();
+                                                // Ensure we are syncing both ID and amount
+                                                $syncData = collect($state)->mapWithKeys(function ($item) {
+                                                    return [$item['id'] => ['amount' => $item['amount'] ?? 0]];
+                                                })->toArray();
 
-                                                // Remove any refunds that were deselected
-                                                $record->refundPassengers()->sync($selectedRefunds);
-                                                $record->loadMissing('refundPassengers.card'); // Eager-load relationships
-                                                $totalAmount = $record->refundPassengers->sum('ref_to_cus');
+                                                // Debugging: Check if sync data is correct
+                                                \Log::info('Sync Data:', $syncData);
+
+                                                // Sync refundPassengers with the pivot table including amount
+                                                $record->refundPassengers()->sync($syncData);
+
+                                                // Reload relationships to get the updated total amount
+                                                $record->loadMissing('refundPassengers.card');
+
+                                                // Calculate the total amount from pivot table
+                                                $totalAmount = $record->refundPassengers->sum('pivot.amount');
+
+                                                // Update total amount in the form
                                                 $set('total_amount', $totalAmount);
                                             }
                                         })
                                         ->hiddenLabel()
                                         ->headers([
                                             Header::make('ID')->width('150px'),
-                                            Header::make('RecNo')->width('80px'),
+                                            Header::make('Rec No')->width('80px'),
                                             Header::make('Refund')->markAsRequired(),
                                         ])
                                         ->schema([
                                             Forms\Components\Hidden::make('id'),
-
                                             Forms\Components\TextInput::make('card_name')
+                                                ->afterStateHydrated(function ($state, $record, $set) {
+                                                    if ($record) {
+                                                        $record->loadMissing('card');
+                                                        $set('card_name', optional($record->card)->card_name);
+                                                    }
+                                                })
                                                 ->nullable(),
                                             Forms\Components\TextInput::make('record_no')
                                                 ->nullable(),
-                                            Forms\Components\TextInput::make('customer_char')
+                                            Forms\Components\TextInput::make('amount')
+
+                                                ->numeric()
+                                                ->live(onBlur: true)
                                                 ->nullable(),
                                         ])
                                         ->addable(false)
@@ -272,6 +277,7 @@ class PayRefundResource extends Resource
                 //
             ])
             ->actions([
+                Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([
@@ -292,7 +298,7 @@ class PayRefundResource extends Resource
     {
         return [
             'index' => Pages\ListPayRefunds::route('/'),
-            //  'create' => Pages\CreatePayRefund::route('/create'),
+            //'create' => Pages\CreatePayRefund::route('/create'),
             //'edit' => Pages\EditPayRefund::route('/{record}/edit'),
         ];
     }

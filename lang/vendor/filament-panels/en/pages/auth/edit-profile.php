@@ -13,6 +13,9 @@ return [
         'name' => [
             'label' => 'Name',
         ],
+        'username' => [
+            'label' => 'Username',
+        ],
 
         'password' => [
             'label' => 'New password',

@@ -42,7 +42,7 @@ class PayRefund extends Model
 
     public function refundPassengers()
     {
-        return $this->belongsToMany(RefundPassenger::class, 'pay_refund_refund_passenger');
+        return $this->belongsToMany(RefundPassenger::class, 'pay_refund_refund_passenger')->withPivot('amount');
     }
 
     protected static function boot()
