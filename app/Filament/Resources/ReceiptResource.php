@@ -8,12 +8,14 @@ use App\Models\Receipt;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Filament\Forms;
+use Filament\Forms\Components\Section;
 use Filament\Forms\Form;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Infolists\Infolist;
 use Filament\Resources\Resource;
 use Filament\Support\Enums\FontFamily;
 use Filament\Tables;
+use Filament\Tables\Columns\Column;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -38,100 +40,102 @@ class ReceiptResource extends Resource
     public static function getFormSchema(): array
     {
         return [
+            Section::make()->schema([
+                Forms\Components\Fieldset::make('Receipt Details')
+                    ->schema(
+                        [
+                            Forms\Components\TextInput::make('name')
+                                ->default(fn() => ReceiptResource::generateName())
+                                ->required()
+                                ->inlineLabel()
+                                ->disabled()
+                                ->maxLength(255),
+                            Forms\Components\DatePicker::make('created_at')
+                                ->label('Date')
+                                ->displayFormat('dMY')
+                                ->default(now()) // Get date from created_at
+                                ->disabled()
+                                ->native(false)->inlineLabel(),
+                            Forms\Components\TextInput::make('year')
+                                ->default(fn($get) => $get('created_at') ? Carbon::parse($get('created_at'))->year : Carbon::now()->year) // Get year from created_at
+                                ->disabled()->inlineLabel(),
 
-            Forms\Components\Fieldset::make('Receipt Details')
-                ->schema(
-                    [
-                        Forms\Components\TextInput::make('name')
-                            ->default(fn() => ReceiptResource::generateName())
-                            ->required()
-                            ->inlineLabel()
-                            ->disabled()
-                            ->maxLength(255),
-                        Forms\Components\DatePicker::make('created_at')
-                            ->label('Date')
-                            ->displayFormat('dMY')
-                            ->default(now()) // Get date from created_at
-                            ->disabled()
-                            ->native(false)->inlineLabel(),
-                        Forms\Components\TextInput::make('year')
-                            ->default(fn($get) => $get('created_at') ? Carbon::parse($get('created_at'))->year : Carbon::now()->year) // Get year from created_at
-                            ->disabled()->inlineLabel(),
+                            Forms\Components\Select::make('user_id')
+                                ->default(fn() => auth()->id())
+                                ->native(false)
+                                ->relationship(name: 'user', titleAttribute: 'name')->inlineLabel(),
+                        ]
+                    )
+                    ->columns(4)
+                    ->columnSpanFull(),
 
-                        Forms\Components\Select::make('user_id')
-                            ->default(fn() => auth()->id())
-                            ->native(false)
-                            ->relationship(name: 'user', titleAttribute: 'name')->inlineLabel(),
-                    ]
-                )
-                ->columns(4)
-                ->columnSpanFull(),
+                Forms\Components\Select::make('card_id')
+                    ->relationship('card', 'card_name')
+                    ->searchable()
+                    ->preload()
+                    ->inlineLabel()
+                    ->live(debounce: 100)
+                    ->afterStateUpdated(function ($state, $set) {
 
-            Forms\Components\Select::make('card_id')
-                ->relationship('card', 'card_name')
-                ->searchable()
-                ->preload()
-                ->inlineLabel()
-                ->live(debounce: 100)
-                ->afterStateUpdated(function ($state, $set) {
+                        if (!$state) {
+                            $set('customer_id', null);
+                        }
+                        $card = Card::find($state);
 
-                    if (!$state) {
-                        $set('customer_id', null);
-                    }
-                    $card = Card::find($state);
+                        if ($card) {
+                            $set('customer_id', $card->customer_id);
+                        }
+                    }),
 
-                    if ($card) {
-                        $set('customer_id', $card->customer_id);
-                    }
-                }),
+                Forms\Components\Select::make('customer_id')
+                    ->searchable()
+                    ->inlineLabel()
+                    ->preload()
+                    ->relationship('customer', 'name'),
+                Forms\Components\TextInput::make('modified_by')
+                    ->inlineLabel()
+                    ->maxLength(255),
 
-            Forms\Components\Select::make('customer_id')
-                ->searchable()
-                ->inlineLabel()
-                ->preload()
-                ->relationship('customer', 'name'),
-            Forms\Components\TextInput::make('modified_by')
-                ->inlineLabel()
-                ->maxLength(255),
+                Forms\Components\TextInput::make('bank_no')
+                    ->inlineLabel()
+                    ->maxLength(255),
+                Forms\Components\TextInput::make('dc_cc')
+                    ->inlineLabel()
+                    ->maxLength(255),
+                Forms\Components\TextInput::make('total')
+                    ->default(0)
+                    ->inlineLabel()
+                    ->numeric(),
 
-            Forms\Components\TextInput::make('bank_no')
-                ->inlineLabel()
-                ->maxLength(255),
-            Forms\Components\TextInput::make('dc_cc')
-                ->inlineLabel()
-                ->maxLength(255),
-            Forms\Components\TextInput::make('total')
-                ->default(0)
-                ->inlineLabel()
-                ->numeric(),
+                Forms\Components\TextInput::make('changes')
+                    ->default(0)
+                    ->inlineLabel()
+                    ->numeric(),
+                Forms\Components\Select::make('type')
+                    ->label('Type')
+                    ->reactive()
+                    ->native(false)
+                    ->inlineLabel()
+                    ->default('cash')
+                    ->options([
+                        'bank' => 'Bank',
+                        'cash' => 'Cash',
+                    ])
+                    ->required()
+                    ->placeholder('Payment type'),
+                Forms\Components\Select::make('recon_acc')
+                    ->relationship('bank', 'name')
+                    ->inlineLabel()
+                    ->visible(fn($get): bool => $get('type') === 'bank'),
+                Forms\Components\DatePicker::make('bank_date')
+                    ->native(false)
+                    ->displayFormat(' j M y')
+                    ->label('Date')
+                    ->inlineLabel()
+                    ->nullable()
+                    ->visible(fn($get): bool => $get('type') === 'bank'),
+            ])->compact()->columns(3),
 
-            Forms\Components\TextInput::make('changes')
-                ->default(0)
-                ->inlineLabel()
-                ->numeric(),
-            Forms\Components\Select::make('type')
-                ->label('Type')
-                ->reactive()
-                ->native(false)
-                ->inlineLabel()
-                ->default('cash')
-                ->options([
-                    'bank' => 'Bank',
-                    'cash' => 'Cash',
-                ])
-                ->required()
-                ->placeholder('Payment type'),
-            Forms\Components\Select::make('recon_acc')
-                ->relationship('bank', 'name')
-                ->inlineLabel()
-                ->visible(fn($get): bool => $get('type') === 'bank'),
-            Forms\Components\DatePicker::make('bank_date')
-                ->native(false)
-                ->displayFormat(' j M y')
-                ->label('Date')
-                ->inlineLabel()
-                ->nullable()
-                ->visible(fn($get): bool => $get('type') === 'bank'),
         ];
     }
 

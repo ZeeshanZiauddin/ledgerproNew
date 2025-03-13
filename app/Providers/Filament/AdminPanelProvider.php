@@ -5,6 +5,8 @@ namespace App\Providers\Filament;
 use App\Filament\Auth\CustomLogin;
 use App\Filament\Widgets\MonthlyRevenueReport;
 use App\Filament\Widgets\RemindersCalender;
+use App\Filament\Widgets\ResourceCards;
+use App\Filament\Widgets\ResourceStatsWidget;
 use App\Filament\Widgets\TopCustomer;
 use App\Filament\Widgets\TopSalesPerson;
 use Awcodes\Overlook\OverlookPlugin;
@@ -37,6 +39,7 @@ use lockscreen\FilamentLockscreen\Lockscreen;
 use lockscreen\FilamentLockscreen\Http\Middleware\Locker;
 use lockscreen\FilamentLockscreen\Http\Middleware\LockerTimer;
 use Rmsramos\Activitylog\ActivitylogPlugin;
+use ShuvroRoy\FilamentSpatieLaravelBackup\FilamentSpatieLaravelBackupPlugin;
 use Swis\Filament\Backgrounds\FilamentBackgroundsPlugin;
 use Tapp\FilamentAuthenticationLog\FilamentAuthenticationLogPlugin;
 use TomatoPHP\FilamentNotes\FilamentNotesPlugin;
@@ -64,11 +67,11 @@ class AdminPanelProvider extends PanelProvider
                 Pages\Dashboard::class,
             ])
             ->widgets([
+                ResourceStatsWidget::class,
                 TopSalesPerson::class,
                 TopCustomer::class,
                 MonthlyRevenueReport::class,
                 RemindersCalender::class,
-                OverlookWidget::class,
             ])
             ->middleware([
                 EncryptCookies::class,
@@ -102,28 +105,15 @@ class AdminPanelProvider extends PanelProvider
                 FilamentProgressbarPlugin::make()->color('#29b'),
                 new Lockscreen(),
                 FilamentAuthenticationLogPlugin::make(),
+                FilamentSpatieLaravelBackupPlugin::make()
+                    ->noTimeout()
+                    ->authorize(fn() => auth()->user()->hasRole('super_admin')),
                 ActivitylogPlugin::make()
                     ->authorize(
                         fn() => auth()->user()->hasRole('pannel_user')
                     ),
                 FilamentApexChartsPlugin::make(),
                 SpotlightPlugin::make(),
-                OverlookPlugin::make()
-                    ->sort(0)
-                    ->includes([
-                        \App\Filament\Resources\CardResource::class,
-                        \App\Filament\Resources\InquiryResource::class,
-                        \App\Filament\Resources\ReceiptResource::class,
-                        \App\Filament\Resources\PayRefundResource::class,
-                    ])
-                    ->columns([
-                        'default' => 1,
-                        'sm' => 2,
-                        'md' => 3,
-                        'lg' => 4,
-                        'xl' => 5,
-                        '2xl' => null,
-                    ]),
                 QuickCreatePlugin::make()
                     ->includes([
                         \App\Filament\Resources\InquiryResource::class,

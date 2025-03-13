@@ -9,6 +9,7 @@ use Carbon\Carbon;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Grid;
 use Filament\Forms\Components\Group;
+use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Form;
 use Filament\Infolists\Components\TextEntry;
@@ -39,140 +40,157 @@ class InquiryResource extends Resource
     public static function form(Form $form): Form
     {
         return $form
-            ->schema([
-                Grid::make()
-                    ->schema([
-                        Group::make()
-                            ->schema([
-                                TextInput::make('inquiry_name')
-                                    ->default(fn() => InquiryResource::generateInquiryName()) // Call the generateInquiryName method
-                                    ->disabled() // Disable the field to prevent manual editing
-                                    ->required()
-                                    ->label('Inquiry No.'),
-                                TextInput::make('user.name')
-                                    ->label('User')
-                                    ->default(fn($get) => auth()->user() ? auth()->user()->name : '')  // Show the logged-in user's name
-                                    ->disabled()
-                                    ->label('Owner'),
-
-                                TextInput::make('created_at')
-                                    ->label('Date')
-                                    ->default(Carbon::now()->format('d M Y'))
-                                    ->disabled(),
-                                Select::make('status')
-                                    ->label('Status')
-                                    ->native(false)
-
-                                    ->options([
-                                        'pending' => 'Pending',
-                                        'canceled' => 'Canceled',
-                                        'in_progress' => 'In Progress',
-                                    ])
-                                    ->required()
-                                    ->default('pending')
-                            ])
-                            ->extraAttributes(['class' => 'gap-0.5'])  // Reduce gap between inputs
-                            ->columnSpan(1),
-                        Group::make()
-                            ->schema([
-                                TextInput::make('contact_name')
-                                    ->required(),
-                                TextInput::make('contact_email'),
-                                PhoneInput::make('contact_mobile')
-                                    ->initialCountry('gb'),
-                                TextInput::make('contact_address'),
-                            ])
-                            ->extraAttributes(['class' => 'gap-0.5'])
-                            ->columnSpan(1),
-                        Group::make()
-                            ->schema([
-                                DatePicker::make('option_date')
-                                    ->native(false)
-                                    ->displayFormat('d M Y'),
-                                TextInput::make('pnr'),
-                                TextInput::make('filter_point'),
-                            ])
-                            ->columnSpan(1),
-                    ])
-                    ->columns(3),
-
-                TextArea::make('price_option')
-                    ->columnSpanFull(),
-
-                TableRepeater::make('items')
-                    ->relationship('passengers')
-                    ->label('Flights')
-                    ->schema([
-                        Select::make('departure_id')
-                            ->searchable()
-                            ->preload()
-                            ->relationship('departure', 'city')
-                            ->label('Departure')
-                            ->placeholder('city'),
-                        Select::make('destination_id')
-                            ->searchable()
-                            ->preload()
-                            ->relationship('destination', 'city')
-                            ->label('Destination')
-                            ->placeholder('city'),
-                        Cluster::make([
-                            DatePicker::make('dep_date')
-                                ->displayFormat('d M')
-                                ->placeholder('Departure')
-
-                                ->native(false),
-                            DatePicker::make('return_date')
-                                ->placeholder('Return')
-                                ->displayFormat('d M')
-                                ->native(false)
-                        ])
-                            ->label('Departure/return'),
-
-                        Cluster::make([
-                            TextInput::make('adults')
-                                ->placeholder('Adults')
-                                ->numeric(),
-                            TextInput::make('child')
-                                ->placeholder('Children')
-                                ->numeric(),
-                            TextInput::make('infants')
-                                ->placeholder('Infants')
-                                ->numeric(),
-                        ])
-                            ->label('Passengers'),
-                        Select::make('flight_type')
-                            ->label('Type')
-                            ->native(false)
-                            ->options([
-                                'return' => 'Return',
-                                'one_way' => 'One Way',
-                                'direct_one_way' => 'Direct One Way',
-                                'direct_return' => 'Direct Return',
-                            ])
-                            ->default('one_way')
-                            ->placeholder('Type')
-                            ->extraAttributes(['class' => 'max-w-[200px]']),
-                        Select::make('airline_id')
-                            ->searchable()
-                            ->preload()
-                            ->relationship('airline', 'name')
-                            ->label('Airline')
-                            ->placeholder('Select')
-                    ])
-                    ->reorderable()
-                    ->collapsible()
-                    ->colStyles([
-                        'departure_id' => 'width: 150px;',
-                        'destination_id' => 'width: 150px;',
-                        'flight_type' => 'width: 150px',
-                        'airline_id' => 'width: 200px',
-                    ])
-                    ->columnSpan('full'),
-
-            ])
-            ->columns(4);
+            ->schema(static::getFormSchema())
+        ;
     }
+    public static function getFormSchema(): array
+    {
+        return [
+            Grid::make()
+                ->schema([
+                    Section::make()
+                        ->schema([
+                            Group::make()
+                                ->schema([
+                                    TextInput::make('inquiry_name')
+                                        ->default(fn() => InquiryResource::generateInquiryName()) // Call the generateInquiryName method
+                                        ->disabled() // Disable the field to prevent manual editing
+                                        ->required()
+                                        ->inlineLabel()
+                                        ->label('Inquiry No.'),
+                                    TextInput::make('user.name')
+                                        ->label('User')
+                                        ->default(fn($get) => auth()->user() ? auth()->user()->name : '')  // Show the logged-in user's name
+                                        ->disabled()
+                                        ->inlineLabel()
+                                        ->label('Owner'),
 
+                                    TextInput::make('created_at')
+                                        ->label('Date')
+                                        ->default(Carbon::now()->format('d M Y'))
+                                        ->disabled()
+                                        ->inlineLabel(),
+                                    Select::make('status')
+                                        ->label('Status')
+                                        ->native(false)
+                                        ->inlineLabel()
+                                        ->options([
+                                            'pending' => 'Pending',
+                                            'canceled' => 'Canceled',
+                                            'in_progress' => 'In Progress',
+                                        ])
+                                        ->required()
+                                        ->default('pending')
+                                ])
+                                ->extraAttributes(['class' => 'gap-0.5'])  // Reduce gap between inputs
+                                ->columnSpan(1),
+                            Group::make()
+                                ->schema([
+                                    TextInput::make('contact_name')
+                                        ->inlineLabel()
+                                        ->required(),
+                                    TextInput::make('contact_email')
+                                        ->inlineLabel(),
+                                    PhoneInput::make('contact_mobile')
+                                        ->inlineLabel()
+                                        ->initialCountry('gb')
+                                        ->inlineLabel(),
+                                    TextInput::make('contact_address')
+                                        ->inlineLabel(),
+                                ])
+                                ->extraAttributes(['class' => 'gap-0.5'])
+                                ->columnSpan(1),
+                            Group::make()
+                                ->schema([
+                                    DatePicker::make('option_date')
+                                        ->native(false)
+                                        ->inlineLabel()
+                                        ->displayFormat('d M Y'),
+                                    TextInput::make('pnr')
+                                        ->inlineLabel(),
+                                    TextInput::make('filter_point')
+                                        ->inlineLabel(),
+                                ])
+                                ->columnSpan(1),
+                        ])
+                        ->compact()
+                        ->columns(3),
+
+                    TextArea::make('price_option')
+                        ->columnSpanFull(),
+
+                    TableRepeater::make('items')
+                        ->relationship('passengers')
+                        ->label('Flights')
+                        ->schema([
+                            Select::make('departure_id')
+                                ->searchable()
+                                ->preload()
+                                ->relationship('departure', 'city')
+                                ->label('Departure')
+                                ->placeholder('city'),
+                            Select::make('destination_id')
+                                ->searchable()
+                                ->preload()
+                                ->relationship('destination', 'city')
+                                ->label('Destination')
+                                ->placeholder('city'),
+                            Cluster::make([
+                                DatePicker::make('dep_date')
+                                    ->displayFormat('d M')
+                                    ->placeholder('Departure')
+
+                                    ->native(false),
+                                DatePicker::make('return_date')
+                                    ->placeholder('Return')
+                                    ->displayFormat('d M')
+                                    ->native(false)
+                            ])
+                                ->label('Departure/return'),
+
+                            Cluster::make([
+                                TextInput::make('adults')
+                                    ->placeholder('Adults')
+                                    ->numeric(),
+                                TextInput::make('child')
+                                    ->placeholder('Children')
+                                    ->numeric(),
+                                TextInput::make('infants')
+                                    ->placeholder('Infants')
+                                    ->numeric(),
+                            ])
+                                ->label('Passengers'),
+                            Select::make('flight_type')
+                                ->label('Type')
+                                ->native(false)
+                                ->options([
+                                    'return' => 'Return',
+                                    'one_way' => 'One Way',
+                                    'direct_one_way' => 'Direct One Way',
+                                    'direct_return' => 'Direct Return',
+                                ])
+                                ->default('one_way')
+                                ->placeholder('Type')
+                                ->extraAttributes(['class' => 'max-w-[200px]']),
+                            Select::make('airline_id')
+                                ->searchable()
+                                ->preload()
+                                ->relationship('airline', 'name')
+                                ->label('Airline')
+                                ->placeholder('Select')
+                        ])
+                        ->reorderable()
+                        ->collapsible()
+                        ->colStyles([
+                            'departure_id' => 'width: 150px;',
+                            'destination_id' => 'width: 150px;',
+                            'flight_type' => 'width: 150px',
+                            'airline_id' => 'width: 200px',
+                        ])
+                        ->columnSpan('full'),
+                ])->columns(3)
+        ];
+    }
     public static function table(Table $table): Table
     {
         return $table
